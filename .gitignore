@@ -24,7 +24,8 @@ Thumbs.db
 *.tmp
 
 # Model weights / checkpoints
-*.h5
+
+#*.h5
 *.hdf5
 *.ckpt
 *.pth
