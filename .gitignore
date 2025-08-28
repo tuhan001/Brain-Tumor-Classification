@@ -1,0 +1,40 @@
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+
+# IDE / Editor settings
+.idea/
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Model weights / checkpoints
+*.h5
+*.hdf5
+*.ckpt
+*.pth
+*.pt
+
+# Uploaded files
+uploads/
+
+# Git folder (just to be safe)
+.git/
+
+# Cache
+*.cache

@@ -1,0 +1,397 @@
+
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MRI Tumor Detection – Dashboard</title>
+  <!-- Bootstrap + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <style>
+    :root {
+      --card-radius: 16px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bs-body-bg);
+      color: var(--bs-body-color);
+    }
+
+
+
+    /* Topbar */
+    .app-navbar {
+      backdrop-filter: saturate(1.2) blur(8px);
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      border-right: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+    }
+
+    .sidebar .nav-link {
+      border-radius: 12px;
+      padding: .6rem .9rem;
+      color: var(--bs-body-color);
+    }
+
+    .sidebar .nav-link.active, .sidebar .nav-link:hover {
+      background: var(--bs-secondary-bg);
+      color: var(--bs-body-color);
+    }
+
+    /* Cards */
+    .card {
+      border-radius: var(--card-radius);
+    }
+
+    /* Dropzone */
+    .dropzone {
+      border: 2px dashed var(--bs-border-color);
+      border-radius: var(--card-radius);
+      padding: 2rem;
+      text-align: center;
+      transition: border-color .2s ease, background-color .2s ease;
+      background: var(--bs-tertiary-bg);
+    }
+
+    .dropzone.dragover {
+      border-color: var(--bs-primary);
+      background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+    }
+
+    /* Image preview */
+    #previewImg { max-height: 320px; }
+
+    /* Subtle shadows */
+    .soft-shadow { box-shadow: 0 4px 18px rgba(0,0,0,.08); }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Navigation -->
+  <nav class="navbar sticky-top app-navbar bg-body px-3">
+    <div class="container-fluid">
+      <button class="btn btn-outline-secondary d-lg-none" data-bs-toggle="offcanvas" data-bs-target="#sidebar">
+        <i class="bi bi-list"></i>
+      </button>
+      <a class="navbar-brand fw-semibold d-flex align-items-center gap-2" href="#">
+        <i class="bi bi-activity text-primary"></i>
+        MRI Tumor Detection
+      </a>
+
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <!-- Theme Toggle -->
+        <button id="themeToggle" class="btn btn-outline-secondary" type="button" aria-label="Toggle dark mode">
+          <i class="bi bi-moon-stars" id="themeIcon"></i>
+        </button>
+        
+      </div>
+    </div>
+  </nav>
+
+  <!-- Layout -->
+  <div class="d-flex">
+    <!-- Sidebar (offcanvas on mobile) -->
+    <div class="offcanvas-lg offcanvas-start sidebar" tabindex="-1" id="sidebar">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title">Navigation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body d-flex flex-column gap-2 p-3">
+        <a class="nav-link active" href="#upload"><i class="bi bi-cloud-arrow-up me-2"></i>Upload & Detect</a>
+        <a class="nav-link" href="#results"><i class="bi bi-clipboard2-pulse me-2"></i>Results</a>
+        <a class="nav-link" href="#history"><i class="bi bi-clock-history me-2"></i>History</a>
+        <a class="nav-link" href="#model"><i class="bi bi-cpu me-2"></i>Model</a>
+        <div class="mt-auto small text-secondary">v1.0</div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <main class="flex-grow-1 p-3 p-lg-4">
+      <!-- Upload Section -->
+      <section id="upload" class="mb-4">
+        <div class="card soft-shadow">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0">Upload MRI Image</h5>
+              <span class="text-secondary small">PNG • JPG • JPEG</span>
+            </div>
+
+            <!-- Dropzone -->
+            <div id="dropzone" class="dropzone mb-3">
+              <i class="bi bi-cloud-upload fs-1 d-block mb-2 text-primary"></i>
+              <p class="mb-2">Drag & drop an MRI image here</p>
+              <p class="text-secondary small mb-3">or</p>
+              <label class="btn btn-primary">
+                <i class="bi bi-folder2-open me-2"></i>Choose file
+                <input id="fileInput" type="file" name="file" accept="image/*" hidden>
+              </label>
+            </div>
+
+            <!-- Preview + Action -->
+            <div class="row g-3 align-items-center">
+              <div class="col-12 col-md-6">
+                <div class="ratio ratio-16x9 bg-body-secondary rounded d-flex align-items-center justify-content-center overflow-hidden">
+                  <img id="previewImg" alt="Preview" class="img-fluid d-none" />
+                  <div id="previewPlaceholder" class="text-secondary">No image selected</div>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <form id="detectForm" method="POST" enctype="multipart/form-data">
+                  <input type="file" id="hiddenFileForForm" name="file" accept="image/*" hidden />
+                  <button id="detectBtn" type="submit" class="btn btn-success w-100" disabled>
+                    <i class="bi bi-search me-2"></i>Detect Tumor
+                  </button>
+                </form>
+                <div class="progress mt-3 d-none" style="height: 10px;" id="uploadProgress">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Section (Jinja-ready) -->
+      <section id="results" class="mb-4">
+        {% if result %}
+        <div class="row g-4">
+          <div class="col-12 col-lg-5">
+            <div class="card soft-shadow h-100">
+              <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <h5 class="mb-0">Inference Summary</h5>
+                  <span class="badge text-bg-primary">{{ timestamp or "Just now" }}</span>
+                </div>
+                <div class="d-flex align-items-center gap-3 mb-3">
+                  <i class="bi bi-clipboard2-pulse fs-2 text-success"></i>
+                  <div>
+                    <div class="text-secondary small">Prediction</div>
+                    <div class="fs-5 fw-semibold">{{ result }}</div>
+                  </div>
+                </div>
+                <div class="mb-2">Confidence</div>
+                <div class="progress mb-1" style="height: 14px;">
+                  <div class="progress-bar bg-success" role="progressbar" style="width: {{ confidence }}%">{{ confidence }}%</div>
+                </div>
+                <div class="text-secondary small">Model: {{ model_name or "VGG16 Transfer" }} • Version {{ model_version or "1.0" }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-7">
+            <div class="card soft-shadow h-100">
+              <div class="card-body p-4">
+                <h6 class="mb-3">Input Image</h6>
+                <div class="ratio ratio-16x9 bg-body-secondary rounded overflow-hidden">
+                  <img src="{{ file_path }}" class="w-100 h-100 object-fit-contain" alt="Uploaded MRI" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {% if probs %}
+          <div class="col-12">
+            <div class="card soft-shadow">
+              <div class="card-body p-4">
+                <h6 class="mb-3">Class Probabilities</h6>
+                <div class="row g-3">
+                  {% for label, pct in probs.items() %}
+                  <div class="col-12 col-md-6 col-xl-3">
+                    <div class="p-3 rounded border">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-medium">{{ label }}</span>
+                        <span class="badge text-bg-secondary">{{ pct }}%</span>
+                      </div>
+                      <div class="progress" style="height: 8px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ pct }}%"></div>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- History Section (optional) -->
+      <section id="history" class="mb-4">
+        {% if history %}
+        <div class="card soft-shadow">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0">Recent Inferences</h5>
+              <a href="#" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export</a>
+            </div>
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th scope="col">Image</th>
+                    <th scope="col">Prediction</th>
+                    <th scope="col">Confidence</th>
+                    <th scope="col">Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in history %}
+                  <tr>
+                    <td style="width:80px">
+                      <img src="{{ item.thumb_path }}" class="rounded" style="width:64px;height:64px;object-fit:cover" alt="thumb" />
+                    </td>
+                    <td>{{ item.result }}</td>
+                    <td>
+                      <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: {{ item.confidence }}%"></div>
+                      </div>
+                      <span class="small text-secondary">{{ item.confidence }}%</span>
+                    </td>
+                    <td class="text-secondary small">{{ item.timestamp }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- Model Section (static/info) -->
+      <section id="model" class="mb-5">
+        <div class="card soft-shadow">
+          <div class="card-body p-4">
+            <h5 class="mb-3">Model Information</h5>
+            <div class="row g-4">
+              <div class="col-md-4">
+                <div class="p-3 rounded border h-100">
+                  <div class="text-secondary small">Architecture</div>
+                  <div class="fw-semibold">{{ model_name or "VGG16 + Custom Head" }}</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="p-3 rounded border h-100">
+                  <div class="text-secondary small">Version</div>
+                  <div class="fw-semibold">{{ model_version or "1.0.0" }}</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="p-3 rounded border h-100">
+                  <div class="text-secondary small">Last Trained</div>
+                  <div class="fw-semibold">{{ model_trained_at or "—" }}</div>
+                </div>
+              </div>
+            </div>
+            <p class="text-secondary small mt-3 mb-0">This dashboard is for clinical decision support only; not a diagnostic tool.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast (notifications) -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+    <div id="appToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          File ready. You can run detection now.
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ===== Theme toggle with persistence =====
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme');
+    const root = document.documentElement;
+    const themeIcon = document.getElementById('themeIcon');
+
+    function applyTheme(theme) {
+      const mode = theme === 'dark' ? 'dark' : 'light';
+      root.setAttribute('data-bs-theme', mode);
+      themeIcon.className = mode === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+      localStorage.setItem('theme', mode);
+    }
+
+    applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const current = root.getAttribute('data-bs-theme');
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    // ===== Drag & drop upload =====
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const hiddenFileForForm = document.getElementById('hiddenFileForForm');
+    const previewImg = document.getElementById('previewImg');
+    const previewPlaceholder = document.getElementById('previewPlaceholder');
+    const detectBtn = document.getElementById('detectBtn');
+    const uploadProgress = document.getElementById('uploadProgress');
+
+    function handleFiles(files) {
+      if (!files || !files.length) return;
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = e => {
+        previewImg.src = e.target.result;
+        previewImg.classList.remove('d-none');
+        previewPlaceholder.classList.add('d-none');
+        detectBtn.disabled = false;
+        hiddenFileForForm.files = files; // forward to form input
+        // Toast
+        const toast = new bootstrap.Toast(document.getElementById('appToast'));
+        toast.show();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    ;['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); }));
+    ;['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); }));
+    dropzone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+
+    // Optional: Fake progress on submit (replace with real upload xhr if needed)
+    document.getElementById('detectForm').addEventListener('submit', (e) => {
+      // If your backend expects the normal POST with multipart/form-data, this will work as-is because the hidden input holds the FileList.
+      // Remove the progress simulation below when you wire up real server-side streaming.
+      uploadProgress.classList.remove('d-none');
+      const bar = uploadProgress.querySelector('.progress-bar');
+      let p = 0;
+      const timer = setInterval(() => {
+        p = Math.min(100, p + Math.random()*20);
+        bar.style.width = p + '%';
+        if (p >= 100) clearInterval(timer);
+      }, 200);
+    });
+
+  </script>
+  <!-- Footer -->
+  <footer class="bg-body border-top py-3 mt-auto">
+    <div class="container text-center small text-secondary">
+      © 2025 Hasebul Hasan Tuhan. All rights reserved.
+    </div>
+  </footer>
+
+</body>
+</html>
